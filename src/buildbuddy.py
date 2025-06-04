@@ -3,7 +3,27 @@ from dotenv import load_dotenv
 
 import streamlit as st
 
+import subprocess
+
+def list_installed_llms_via_cli():
+    try:
+        result = subprocess.run(['ollama', 'ls'], capture_output=True, text=True)
+        output_lines = result.stdout.strip().splitlines()
+        # Skip the header row and extract only model names
+        models = []
+        for line in output_lines[1:]:
+            # Split line by whitespace and get the first item
+            parts = line.split()
+            if parts:
+                model_name = parts[0]
+                models.append(model_name)
+        return models
+    except Exception:
+        return []
+    
 load_dotenv()
+
+skip_login = os.getenv("SKIP_LOGIN")
 
 admin_user_name = os.getenv("ADMIN_USER_NAME")
 admin_password = os.getenv("ADMIN_PASSWORD")
@@ -48,12 +68,19 @@ st.write("Welcome to **BuildBuddy**! Your friendly assistant to kickstart your P
 
 # --- User authentication ---
 if 'logged_in' not in st.session_state:
-    st.session_state['logged_in'] = False
+    if(skip_login=="True"):
+        st.session_state['logged_in'] = True
+        st.session_state['logged_in'] = True
+        st.session_state['username'] = guest_user_name
+        st.session_state['ROLE'] = 'Guest'
+    else:
+        st.session_state['logged_in'] = False
 
 def login():
     st.header("Login to BuildBuddy")
     username = st.text_input("USN")
     password = st.text_input("Password", type='password')
+    
     if st.button("Login"):
         if username == guest_user_name and password == guest_password:
             st.session_state['logged_in'] = True
@@ -75,21 +102,37 @@ else:
 
     # Chat interface
     st.markdown("## 🤖 Ask BuildBuddy for help or type your project details:")
+    
+    # Fetch models dynamically
+    llm_list = list_installed_llms_via_cli()
 
-    user_input = st.text_area("Type your request", height=150)
-    if st.button("Send"):
-        # Here, connect to Ollama LLM for processing
-        # Example placeholder:
-        # response = ollama_llm_process(user_input)
-        # For now, just echo:
-        st.info(f"BuildBuddy understands your request: {user_input}")
+    if not llm_list:
+        st.warning("No LLMs found. Please install models using Ollama.")
+    else:
+        selected_llm = st.selectbox("Choose an LLM to use:", llm_list)
+        st.write(f"Selected Model: {selected_llm}")
 
-        # Trigger your project creation logic based on user_input
-        # create_project_files(project_name or based on NLP response)
+        user_input = st.text_area("As a BuildBuddy, I can assist you with any Python project creation, How can i help you today?:")
+        if st.button("Run NLP"):
+            # Add your connection to Ollama here
+            # For example:
+            # response = ollama_api_or_cli_call(selected_llm, user_input)
+            response = f"Dummy response for model {selected_llm} with input: {user_input}"
+            st.write("LLM Response:")
+            st.write(response)
+            
+            # Here, connect to Ollama LLM for processing
+            # Example placeholder:
+            # response = ollama_llm_process(user_input)
+            # For now, just echo:
+            st.info(f"BuildBuddy understands your request: {user_input}")
 
-        # After creation, provide download link (placeholder)
-        st.success("Your project has been set up successfully!")
-        # Add download button if files are ready
+            # Trigger your project creation logic based on user_input
+            # create_project_files(project_name or based on NLP response)
+
+            # After creation, provide download link (placeholder)
+            st.success("Your project has been set up successfully!")
+            # Add download button if files are ready
 
     # Options to logout
     if st.button("Logout"):
