@@ -1,18 +1,15 @@
 import os
 from dotenv import load_dotenv
-
 import streamlit as st
-
 import subprocess
 
+# Function to list installed LLMs via Ollama CLI
 def list_installed_llms_via_cli():
     try:
         result = subprocess.run(['ollama', 'ls'], capture_output=True, text=True)
         output_lines = result.stdout.strip().splitlines()
-        # Skip the header row and extract only model names
         models = []
         for line in output_lines[1:]:
-            # Split line by whitespace and get the first item
             parts = line.split()
             if parts:
                 model_name = parts[0]
@@ -20,56 +17,53 @@ def list_installed_llms_via_cli():
         return models
     except Exception:
         return []
-    
+
 load_dotenv()
 
-skip_login = os.getenv("SKIP_LOGIN")
+# Load credentials and configs
+skip_login = os.getenv("SKIP_LOGIN", "False")
+admin_user_name = os.getenv("ADMIN_USER_NAME", "Guest")
+admin_password = os.getenv("ADMIN_PASSWORD", "Guest123$")
+guest_user_name = os.getenv("GUEST_USER_NAME", "Guest")
+guest_password = os.getenv("GUEST_PASSWORD", "Guest123$")
 
-admin_user_name = os.getenv("ADMIN_USER_NAME")
-admin_password = os.getenv("ADMIN_PASSWORD")
-
-guest_user_name = os.getenv("GUEST_USER_NAME")
-guest_password = os.getenv("GUEST_PASSWORD")
- 
 # --- Styling (custom CSS for soothing colors) ---
 st.markdown(
     """
     <style>
-    /* Set soothing background color and font styles */
     body {
-        background-color: #f0f4f8; /* light soothing background */
-        color: #333; /* dark text for contrast */
+        background-color: #f0f4f8;
+        color: #333;
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     }
-    /* Style headers */
     h1, h2 {
-        color: #4A90E2; /* calming blue */
+        color: #4A90E2;
     }
-    /* Style input boxes and buttons */
-    .stTextbox, .stButton {
+    .stTextInput {
         border-radius: 8px;
         border: 1px solid #ccc;
         padding: 10px;
     }
-    /* Style success/error messages */
-    .stSuccess, .stError {
+    .stButton {
         border-radius: 8px;
         padding: 10px;
-        margin-top: 10px;
+    }
+    .stMarkdown {
+        margin: 0 0 10px 0;
     }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# --- App title with branding ---
-st.markdown("> # 🛠️ BuildBuddy - Your AI Project Creator")
-st.write("Welcome to **BuildBuddy**! Your friendly assistant to kickstart your Python projects effortlessly.")
+# --- App title ---
+st.markdown("> # 🛠️ BuildBuddy - Your AI Project Builder")
+st.write("Welcome! BuildBuddy helps you kickstart Python projects seamlessly.")
 
-# --- User authentication ---
+
+# --- Authentication & Login ---
 if 'logged_in' not in st.session_state:
-    if(skip_login=="True"):
-        st.session_state['logged_in'] = True
+    if skip_login.lower() == "true":
         st.session_state['logged_in'] = True
         st.session_state['username'] = guest_user_name
         st.session_state['ROLE'] = 'Guest'
@@ -78,9 +72,10 @@ if 'logged_in' not in st.session_state:
 
 def login():
     st.header("Login to BuildBuddy")
+    if not all([admin_user_name, admin_password, guest_user_name, guest_password]):
+        st.error("Some credentials are missing in environment variables.")
     username = st.text_input("USN")
     password = st.text_input("Password", type='password')
-    
     if st.button("Login"):
         if username == guest_user_name and password == guest_password:
             st.session_state['logged_in'] = True
@@ -93,48 +88,52 @@ def login():
         else:
             st.error("Invalid credentials!")
 
-# --- Main interface ---
 if not st.session_state['logged_in']:
     login()
-else:
-    # Welcome message
-    st.success(f"👋 Hello, {st.session_state['username']}! You logged in as {st.session_state['ROLE']}! Ready to build something awesome?")
+    st.stop()
 
-    # Chat interface
-    st.markdown("## 🤖 Ask BuildBuddy for help or type your project details:")
-    
-    # Fetch models dynamically
-    llm_list = list_installed_llms_via_cli()
-
-    if not llm_list:
-        st.warning("No LLMs found. Please install models using Ollama.")
-    else:
-        selected_llm = st.selectbox("Choose an LLM to use:", llm_list)
-        st.write(f"Selected Model: {selected_llm}")
-
-        user_input = st.text_area("As a BuildBuddy, I can assist you with any Python project creation, How can i help you today?:")
-        if st.button("Run NLP"):
-            # Add your connection to Ollama here
-            # For example:
-            # response = ollama_api_or_cli_call(selected_llm, user_input)
-            response = f"Dummy response for model {selected_llm} with input: {user_input}"
-            st.write("LLM Response:")
-            st.write(response)
-            
-            # Here, connect to Ollama LLM for processing
-            # Example placeholder:
-            # response = ollama_llm_process(user_input)
-            # For now, just echo:
-            st.info(f"BuildBuddy understands your request: {user_input}")
-
-            # Trigger your project creation logic based on user_input
-            # create_project_files(project_name or based on NLP response)
-
-            # After creation, provide download link (placeholder)
-            st.success("Your project has been set up successfully!")
-            # Add download button if files are ready
-
-    # Options to logout
+# --- Main Logged-in Area ---
+# Sidebar for Logout Button
+with st.sidebar:
     if st.button("Logout"):
-        st.session_state['logged_in'] = False
+        st.session_state.clear()
         st.experimental_rerun()
+
+# Welcome message
+st.success(f"👋 Hello, {st.session_state['username']}! You logged in as {st.session_state['ROLE']}.")
+
+# Initialize chat history
+if 'messages' not in st.session_state:
+    st.session_state['messages'] = []
+
+# Fetch available LLMs
+llm_list = list_installed_llms_via_cli()
+
+# Chat history display
+st.markdown("### Conversation")
+chat_container = st.container()
+with chat_container:
+    for role, msg in st.session_state['messages']:
+        if role == "user":
+            st.markdown(f"**You:** {msg}")
+        else:
+            st.markdown(f"**BuildBuddy:** {msg}")
+
+# User input area
+st.markdown("### Ask BuildBuddy")
+user_input = st.text_input("Type your message here:", key="chat_input")
+
+# Send button (placed next to input)
+if st.button("Send") and user_input:
+    # Save user message
+    st.session_state['messages'].append(('user', user_input))
+    
+    # Generate dummy response (or actual LLM call)
+    response = f"BuildBuddy's response to: '{user_input}'"
+    
+    # Append the response to chat history
+    st.session_state['messages'].append(('bot', response))
+    
+    # Reset input box
+    st.rerun()
+    
