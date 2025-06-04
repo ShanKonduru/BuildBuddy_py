@@ -127,10 +127,12 @@ st.markdown("### Conversation")
 chat_container = st.container()
 with chat_container:
     for role, msg in st.session_state['messages']:
-        if role == "user":
-            st.markdown(f"**You:** {msg}")
+        if role == 'user':
+            # User message with icon/emojis
+            st.markdown(f"> 🧑 **You:** {msg}")
         else:
-            st.markdown(f"**BuildBuddy:** {msg}")
+            # Bot message with icon/emojis
+            st.markdown(f"> 🤖 **BuildBuddy:** {msg}")
 
 # User input area
 st.markdown("### Ask BuildBuddy")
