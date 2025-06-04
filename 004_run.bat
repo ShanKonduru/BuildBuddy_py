@@ -1,2 +1,3 @@
 @echo off
-python main.py
+REM python main.py
+streamlit run src\buildbuddy.py
