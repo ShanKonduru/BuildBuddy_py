@@ -60,6 +60,8 @@ st.markdown(
 st.markdown("> # 🛠️ BuildBuddy - Your AI Project Builder")
 st.write("Welcome! BuildBuddy helps you kickstart Python projects seamlessly.")
 
+if 'input_counter' not in st.session_state:
+    st.session_state['input_counter'] = 0
 
 # --- Authentication & Login ---
 if 'logged_in' not in st.session_state:
@@ -97,7 +99,18 @@ if not st.session_state['logged_in']:
 with st.sidebar:
     if st.button("Logout"):
         st.session_state.clear()
-        st.experimental_rerun()
+        st.rerun()
+
+# Fetch and display LLMs in sidebar
+llm_list = list_installed_llms_via_cli()
+
+st.sidebar.markdown("## Available LLMs")
+
+if llm_list:
+    selected_llm = st.sidebar.selectbox("Available Models", llm_list)
+else:
+    selected_llm = None
+    st.sidebar.write("No models found.")
 
 # Welcome message
 st.success(f"👋 Hello, {st.session_state['username']}! You logged in as {st.session_state['ROLE']}.")
@@ -121,7 +134,8 @@ with chat_container:
 
 # User input area
 st.markdown("### Ask BuildBuddy")
-user_input = st.text_input("Type your message here:", key="chat_input")
+input_key = f"chat_input_{st.session_state['input_counter']}"
+user_input = st.text_input("Type your message here:", key=input_key)
 
 # Send button (placed next to input)
 if st.button("Send") and user_input:
@@ -133,6 +147,8 @@ if st.button("Send") and user_input:
     
     # Append the response to chat history
     st.session_state['messages'].append(('bot', response))
+    
+    st.session_state['input_counter'] += 1
     
     # Reset input box
     st.rerun()
